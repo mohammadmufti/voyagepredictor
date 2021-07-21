@@ -1,5 +1,8 @@
 import csv
-import math
+from math import radians
+import pandas as pd
+import numpy as np
+from sklearn.metrics.pairwise import haversine_distances
 
 # Initialize lists
 ports_list = []
@@ -24,34 +27,42 @@ del original_tracking_list[0] #Delete header
 # Adds port location to a new tracking list that we will use. 
 iterator = 0
 for row in original_tracking_list:
+    print("Processing Line " + str(iterator))
     iterator += 1
+    row_latlong = [radians(float(row[2])),radians(float(row[3]))]
+    closest_port = 0
+    closeness = 3 # at most 3 km away (largest port I know of has a total berth length of roughly 20 km)
     for port in ports_list:
         # Precise measurement determines nearby port - can't use just stopped position as a marker
-        # as vessal will often be moving slowly about a port or near a port when its essentially entered
+        # as vessal will sometimes be moving slowly about a port or near a port when its essentially entered
         # and sometimes data will show a v low speed but lat/long remain unchanged (errors in speed data).
         if row[5] != "NULL": # Disregard entries where speed is NULL
-            if float(row[5]) < 1: # Only consider entries where speed is slow.
-                if math.isclose(float(row[2]),float(port[1]),abs_tol=0.12):
-                    if math.isclose(float(row[3]),float(port[2]),abs_tol=0.12):
-                        row.append(port[0])  # Adds port number to entry
+            if float(row[5]) < 0.2: # Only consider entries where speed is very slow or zero.
+                port_latlong = [radians(float(port[1])),radians(float(port[2]))]
+                curr_closeness = haversine_distances([row_latlong,port_latlong]) * 6371000/1000
+                if curr_closeness[0][1] < closeness:
+                    closeness = curr_closeness[0][1]
+                    closest_port = port[0]
+    if closest_port != 0:
+        row.append(closest_port)
 
     # Imprecise measurement only utilized if vehicle is in a stopped position
     # So we don't lose potential trips at large ports due to precision of above captures.
-    if len(row) != 8:
-        if row[5] == "0":
-            closest_port = 0
-            closeness = 10000
-            for port in ports_list:
-                # Imprecise measurement determines nearby port
-                # So we find when vessels are moored at periphery of a large port
-                if math.isclose(float(row[2]), float(port[1]), abs_tol=0.5):
-                    if math.isclose(float(row[3]), float(port[2]), abs_tol=0.5):
-                        curr_closeness = abs(float(row[2]) - float(port[1])) + abs(float(row[3]) - float(port[2]))
-                        if curr_closeness < closeness:
-                            closeness = curr_closeness
-                            closest_port = port[0]
-            if closest_port != 0:
-                row.append(closest_port)  # Adds port number to entry if a nearby port was found
+    # if len(row) != 8:
+    #     if row[5] == "0":
+    #         closest_port = 0
+    #         closeness = 10000
+    #         for port in ports_list:
+    #             # Imprecise measurement determines nearby port
+    #             # So we find when vessels are moored at periphery of a large port
+    #             if math.isclose(float(row[2]), float(port[1]), abs_tol=0.5):
+    #                 if math.isclose(float(row[3]), float(port[2]), abs_tol=0.5):
+    #                     curr_closeness = abs(float(row[2]) - float(port[1])) + abs(float(row[3]) - float(port[2]))
+    #                     if curr_closeness < closeness:
+    #                         closeness = curr_closeness
+    #                         closest_port = port[0]
+    #         if closest_port != 0:
+    #             row.append(closest_port)  # Adds port number to entry if a nearby port was found
 
 # Create new tracking list scrubbing movement data
 # Only retains tracking lines sufficiently near a port
@@ -104,3 +115,8 @@ with open('voyages.csv', 'w', newline='') as voyagesfile:
     for ea in voyages:
         v_writer.writerow(ea)
 
+# Store tracking list to csv - for debugging and visualization purposes.
+with open('tracking_list_ports_touched.csv', 'w', newline='') as tlpt:
+    tlpt_writer = csv.writer(tlpt, delimiter=',',quotechar='"',quoting=csv.QUOTE_MINIMAL)
+    for ea in tracking_list:
+        tlpt_writer.writerow(ea)
