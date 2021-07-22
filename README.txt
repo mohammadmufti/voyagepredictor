@@ -18,11 +18,10 @@ BUT we're finding it biases based on frequency and doesn't consider
 seasonality. Adding trip numbers to 2019 trips and using as basis for
 2020 trip predictions will simulate this to some extent. (example vessel
 1 w/out added inputs will just run b/ween Asia and US but seasonality
-would intuititively suggest that we should be around Europe).
+would intuititively suggest that we should be around Europe). Additionally
+adding a season marker (quarters) will help.
 - Consideration : Should model be re-trained for ea vessel? Cargo vessels
 should follow routes w no implication from other ships in theory?
-- In addition to trip numbers, add seasonality through actually marking
-quarter of ea year?
 - Current 7/20 leaderboard of 3 has the worst voyage construction w the best
 predictions, and best construction w the worst predictions. Why?
 
@@ -38,3 +37,18 @@ prediction score?
 
 Debugging ToDo:
 - Create list of short trips - visualize. Logical?
+
+Questions:
+
+- How far from a port (in km) as listed in ports.csv can we be to be considered
+at the port.
+- When a ship travels without touching a listed port in ports.csv, and returns
+to the starting port - do we treat this as a non-trip, or do we treat this
+as a trip going from X to X.
+
+
+TO DO:
+
+- Incorporate draft in determining if a ship is docked
+- Track last known coordinate of a ship
+- Use last known coord to find the likliest port of arrival.
