@@ -22,9 +22,10 @@ for vessel in vessels:
     X = mod_voyages.where(voyages.vessel == vessel).dropna()
     y = voyages["end_port_id"].where(voyages.vessel == vessel).dropna()
     model.fit(X,y)
+    # INSERT HERE ALTERNATIVE CODE TO FIND THE FIRST NEW DESTINATION
     begin_port = voyages.loc[voyages.where(voyages.vessel == vessel).last_valid_index(), 'end_port_id']
     end_port = model.predict([[vessel, begin_port, voyage,1]]) #Predictor fed w vessel, start, trip number and expected season
-    predictions.append([vessel, begin_port, end_port[0], voyage,1])
+    predictions.append([vessel, begin_port, end_port[0], voyage])
     while (voyage != 3):
         begin_port = end_port[0]
         voyage += 1

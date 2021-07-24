@@ -2,6 +2,7 @@ import csv
 from math import radians
 import pandas as pd
 from sklearn.metrics.pairwise import haversine_distances
+import sys
 
 # Filenames - edit here for debugging as needed
 tracking_file = 'tracking.csv'
@@ -14,6 +15,13 @@ last_coords_file = 'lastcoords.csv'
 ports_list = []
 original_tracking_list = []
 voyages = [["vessel", "begin_date", "end_date", "begin_port_id", "end_port_id"]]
+initvoyages = []
+
+# Initialize Global Logic variables
+draftTolerance = 0.2  # Draft must fluctuate more than this number to indicate docking (in meters)
+distanceTolerance = 10 # Vessel must be no further than this distance (in km) from a given port.
+prearrival = 6 # How far before an arrival do we look to check draft delta
+postdeparture = 6 # How far after a departure do we look to check draft delta.
 
 # Open the files we will be reading for port and vessal data
 # Populate data into lists we will use
@@ -34,6 +42,7 @@ del original_tracking_list[0] #Delete header
 # Open the tracking file as a DataFrame
 original_tracking_pd = pd.read_csv(tracking_file, parse_dates=["datetime"])
 
+# PORT MARKER - MARKS CLOSEST PORT TO LINE ITEM AS APPROPRIATE
 # Goes through ea row of tracking list and compares the Lat/Long of ship to a list of possible ports
 # Adds port location to a new tracking list that we will use. 
 iterator = 0
@@ -42,7 +51,7 @@ for row in original_tracking_list:
     iterator += 1
     row_latlong = [radians(float(row[2])),radians(float(row[3]))]
     closest_port = 0
-    closeness = 3 # at most 3 km away (largest port I know of has a total berth length of roughly 20 km)
+    closeness = distanceTolerance
     for port in ports_list:
         # Precise measurement determines nearby port - can't use just stopped position as a marker
         # as vessal will sometimes be moving slowly about a port or near a port when its essentially entered
@@ -65,6 +74,7 @@ for ea in original_tracking_list:
     if len(ea) > 7:
         ea.append(index)
         tracking_list.append(ea)
+        print(ea)
     index += 1
 
 # Create copy of tracking list w only departures
@@ -98,20 +108,65 @@ while i < len(arrivals):
         i += 1
         prev = arrivals[i - 1]
 
-# Create a list of voyages
+# VOYAGE MAKER - CREATE AN INITIAL LIST OF POTENTIAL VOYAGES
 i = 0
-while (i+1<len(arrivals)):
-    # print("Processing voyages line "+ str(i) + " of " + str(len(arrivals)))
+totalLines = len(arrivals)
+while (i+1 < totalLines):
+    print("Processing voyages line "+ str(i) + " of " + str(len(arrivals)))
     if departures[i][0] == arrivals[i+1][0]:
-        a_index = int(arrivals[i+1][8]) - 1 #Index before arriving at current port
-        d_index = int(departures[i+1][0]) + 2  #Index exactly upon leaving current port
-        voyages.append([original_tracking_list[int(departures[i][8])][0],
-                        original_tracking_list[int(departures[i][8])+1][1],
-                        original_tracking_list[int(arrivals[i+1][8])][1],
-                        original_tracking_list[int(departures[i][8])][7],
-                        original_tracking_list[int(arrivals[i+1][8])][7]])
-        # voyages.append([departures[i][0],departures[i][1],arrivals[i+1][1],departures[i][7],arrivals[i+1][7]])
+        a_index = int(arrivals[i+1][8]) - prearrival #Index x days before arriving at current port (prev a_index = int(arrivals[i+1][8]) - 1)
+        d_index = int(departures[i+1][8]) + postdeparture  #Index x days after leaving port (d_index = int(departures[i+1][8]) + 2)
+        counter = a_index
+        draftdelta = 0
+        deltaFirst = "NULL"
+        while deltaFirst == "NULL" and counter < d_index:
+            deltaFirst = original_tracking_list[counter][6]
+            counter += 1
+        counter = a_index # Reset the counter
+        if deltaFirst == "NULL": # Crash out of code if all drafts in a section are null - debug
+            sys.exit("ALL DRAFT VALUES FROM " + str(a_index) + " TO " + str(d_index) + " ARE NULL _ ERROR")
+        while counter <= d_index:
+            if (original_tracking_list[counter][6] != 'NULL'): # Checks that draft is not NULL
+                if original_tracking_list[counter][0] == departures[i][0]: # Checks that line is for current vessel
+                    draftvar = abs(float(deltaFirst) - float(original_tracking_list[counter][6]))
+                    if draftdelta < draftvar:
+                        draftdelta = draftvar
+            counter += 1
+        initvoyages.append([departures[i][0],departures[i][1],arrivals[i+1][1],departures[i][7],arrivals[i+1][7],draftdelta])
     i += 1
+
+# CREATE A FINALIZED LIST OF VOYAGES
+# We will create a new list of voyages, with trips deemed non-trips removed (for lack of change in draft)
+# also we truncate the draft delta column data and store only the necessary information.
+line = []
+for voyage in initvoyages:
+    print(voyage[5]) # Check draft delta as we go (debugging).
+    if voyage[5] >= draftTolerance:
+        if line == []: # If line is blank
+            voyages.append(voyage[0:5])
+        elif voyage[0] == line[0]: # If current vessel is same as prev vessel
+            if line[2] != voyage[4]: # If ports are unique
+                line.insert(-1,voyage[2])
+                line.append(voyage[4])
+                print('case2')
+                print(line)
+                voyages.append(line.copy())
+                line.clear()
+            else:
+                # We do not append to final voyages when its a same port to same port trip
+                print("Same port to same port trip")
+                print(line)
+                print(voyage)
+        else:
+            voyages.append(voyage[0:5])
+            print('case3')
+            print(line)
+            line.clear()
+    else:
+        if line == []:
+            line = [voyage[0],
+                    voyage[1],
+                    voyage[3]]
 
 # Store Voyages to csv
 with open(voyages_file, 'w', newline='') as vfile:
