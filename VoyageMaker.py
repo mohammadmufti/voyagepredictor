@@ -18,10 +18,11 @@ voyages = [["vessel", "begin_date", "end_date", "begin_port_id", "end_port_id"]]
 initvoyages = []
 
 # Initialize Global Logic variables
-draftTolerance = 0.2  # Draft must fluctuate more than this number to indicate docking (in meters)
-distanceTolerance = 10 # Vessel must be no further than this distance (in km) from a given port.
-prearrival = 6 # How far before an arrival do we look to check draft delta
-postdeparture = 6 # How far after a departure do we look to check draft delta.
+zerospeed = 0.5 # What is the upper limit of vessel speed, non-inclusive, at which the vessel is stopped
+draftTolerance = 0.1  # Draft must fluctuate more than this number to indicate docking (in meters)
+distanceTolerance = 25 # Vessel must be no further than this distance (in km) from a given port.
+prearrival = 10 # How far before an arrival do we look to check draft delta
+postdeparture = 10 # How far after a departure do we look to check draft delta.
 
 # Open the files we will be reading for port and vessal data
 # Populate data into lists we will use
@@ -57,7 +58,7 @@ for row in original_tracking_list:
         # as vessal will sometimes be moving slowly about a port or near a port when its essentially entered
         # and sometimes data will show a v low speed but lat/long remain unchanged (errors in speed data).
         if row[5] != "NULL": # Disregard entries where speed is NULL
-            if float(row[5]) < 0.2: # Only consider entries where speed is very slow or zero.
+            if float(row[5]) < zerospeed: # Only consider entries where speed is very slow or zero.
                 port_latlong = [radians(float(port[1])),radians(float(port[2]))]
                 curr_closeness = haversine_distances([row_latlong,port_latlong]) * 6371
                 if curr_closeness[0][1] < closeness:
@@ -74,7 +75,6 @@ for ea in original_tracking_list:
     if len(ea) > 7:
         ea.append(index)
         tracking_list.append(ea)
-        print(ea)
     index += 1
 
 # Create copy of tracking list w only departures
@@ -140,7 +140,8 @@ while (i+1 < totalLines):
 # also we truncate the draft delta column data and store only the necessary information.
 line = []
 for voyage in initvoyages:
-    print(voyage[5]) # Check draft delta as we go (debugging).
+    if voyage[5] <= draftTolerance: # For debugging
+        print(voyage)
     if voyage[5] >= draftTolerance:
         if line == []: # If line is blank
             voyages.append(voyage[0:5])
@@ -148,8 +149,6 @@ for voyage in initvoyages:
             if line[2] != voyage[4]: # If ports are unique
                 line.insert(-1,voyage[2])
                 line.append(voyage[4])
-                print('case2')
-                print(line)
                 voyages.append(line.copy())
                 line.clear()
             else:
@@ -159,8 +158,6 @@ for voyage in initvoyages:
                 print(voyage)
         else:
             voyages.append(voyage[0:5])
-            print('case3')
-            print(line)
             line.clear()
     else:
         if line == []:

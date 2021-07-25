@@ -23,8 +23,8 @@ del ports_list[0]
 # Create a data frame for subsets of timestamp to train model
 # to consider seasonality to some extent
 mod_voyages = pd.concat([voyages.drop(columns=["begin_date", "end_date", "end_port_id"])], axis=1)
-mod_voyages["Trip_id"] = mod_voyages.groupby("vessel").cumcount()+1 # Index prior trips
-mod_voyages['Seasons'] = [d.quarter for d in voyages['begin_date']] # Add column for season/quarter
+# mod_voyages["Trip_id"] = mod_voyages.groupby("vessel").cumcount()+1 # Index prior trips
+mod_voyages['Seasons'] = [d.quarter for d in voyages['end_date']] # Add column for season/quarter
 vessels = pd.unique(voyages['vessel'])  # Find unique vessals
 predictions = [['vessel', 'begin_port_id', 'end_port_id', 'voyage']]  # Initialize Storage for predictions
 model = DecisionTreeClassifier() # Declare ML model
@@ -50,9 +50,9 @@ def firstTripFunction(vessel):
                 closeness = curr_closeness[0][1]
                 closest_port = port[0]
         elif curr_closeness[0][1] < distanceToleranceToUnknown and curr_closeness[0][1] < closeness:
-            print("Using unknown due to extreme proximity")
-            print(str(vessel) + " v:" + str(vessel_latlong) + " p:" + str(port_latlong) + " c:" + str(curr_closeness[0][1])
-                  + '\n port:' + str(port[0]))
+            # print("Using unknown due to extreme proximity")
+            # print(str(vessel) + " v:" + str(vessel_latlong) + " p:" + str(port_latlong) + " c:" + str(curr_closeness[0][1])
+            #       + '\n port:' + str(port[0]))
             closeness = curr_closeness[0][1]
             closest_port = port[0]
     return int(closest_port)
@@ -67,20 +67,29 @@ for vessel in vessels:
     model.fit(X,y)
     # INSERT HERE ALTERNATIVE CODE TO FIND THE FIRST NEW DESTINATION
     begin_port = voyages.loc[voyages.where(voyages.vessel == vessel).last_valid_index(), 'end_port_id']
-    end_port = model.predict([[vessel, begin_port, voyage,1]]) #Predictor fed w vessel, start, trip number and expected season
+    end_port = model.predict([[vessel, begin_port,
+                               #voyage,
+                               4]]) #Predictor fed w vessel, start, trip number and expected season
     initial_trip = firstTripFunction(vessel)
-    if initial_trip  != 0 and initial_trip  != begin_port:
+    if initial_trip != 0 and initial_trip != begin_port:
         end_port[0] = initial_trip
-        print("Using proximity idea instead of ML model for " +
-              str(vessel) + " " +
-              str(begin_port) + " " +
-              str(int(end_port[0])) + " " + str(voyage))
+        # print("Using proximity idea instead of ML model for " +
+        #       str(vessel) + " " +
+        #       str(begin_port) + " " +
+        #       str(int(end_port[0])) + " " + str(voyage))
+    while begin_port == end_port: # If begin port is equal to the end port - rerun model
+        print("Re-running" + str(vessel))
+        end_port = model.predict([[vessel, begin_port,
+                                   # voyage,
+                                   1]])  # Predictor fed w vessel, start, trip number and expected season
     predictions.append([vessel, begin_port, int(end_port[0]), voyage])
-
+    # print("First prediction" + str(vessel) + str(begin_port) + str(int(end_port[0])) + str(voyage))
     while (voyage != 3):
         begin_port = int(end_port[0])
         voyage += 1
-        end_port = model.predict([[vessel, begin_port, voyage, 1]])
+        end_port = model.predict([[vessel, begin_port,
+                                   #voyage,
+                                   1]])
         predictions.append([vessel, begin_port, int(end_port[0]), voyage])
 
 # Store Predictions to csv
