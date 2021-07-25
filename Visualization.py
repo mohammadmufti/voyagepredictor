@@ -5,7 +5,7 @@ import folium.plugins as plugins
 tracking = pd.read_csv('Debug\Maps\\tracking.csv')
 ports = pd.read_csv('ports.csv')
 vessels = pd.unique(tracking['vessel'])  # Find unique vessals
-rad = 3000 # Set radius for ports
+rad = 15000 # Set radius for ports
 
 # Function to start a map w just the ports
 def startmap():
@@ -23,12 +23,18 @@ def startmap():
 
 for vessel in vessels:
     m = startmap() #Starts a map with ports
+    m2 = startmap()
     currtracking = tracking.where(tracking.vessel==vessel).dropna()
     currtracking.apply(lambda row:folium.Circle(location=[row["lat"], row["long"]],
                                                  radius = 0.5,
                                                  color = 'red',
                                                  tooltip=str(row['speed'])+' + '+str(row['datetime'])
                                                  ).add_to(m), axis=1)
+    currtracking.apply(lambda row:folium.Circle(location=[row["lat"], row["long"]],
+                                                 radius = 0.5,
+                                                 color = 'red',
+                                                 tooltip=str(row['speed'])+' + '+str(row['datetime'])
+                                                 ).add_to(m2), axis=1)
     lastlat = tracking.loc[tracking.where(tracking.vessel == vessel).last_valid_index(), 'lat']
     lastlong = tracking.loc[tracking.where(tracking.vessel == vessel).last_valid_index(), 'long']
     lastspeed = tracking.loc[tracking.where(tracking.vessel == vessel).last_valid_index(), 'speed']
@@ -36,6 +42,8 @@ for vessel in vessels:
     lastdraft = tracking.loc[tracking.where(tracking.vessel == vessel).last_valid_index(), 'draft']
     plugins.BoatMarker(location=[lastlat,lastlong],
                        heading = lasthead,
-                       popup = str(lastspeed) + " + " + str(lastlat) + " + " + str(lastlong)).add_to(m)
+                       popup = str(lastspeed) + " + " + str(lastlat) + " + " + str(lastlong)).add_to(m2)
     print("Processing " + str(vessel))
-    m.save('Debug\Maps\\WithLastCoords\\'+str(vessel)+'.html')
+
+    m.save('Debug\Maps\\'+str(vessel)+'.html')
+    m2.save('Debug\Maps\\WithLastCoords\\'+str(vessel)+'.html')
