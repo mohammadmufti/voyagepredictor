@@ -7,10 +7,10 @@ ports_touched_file = 'tracking_list_ports_touched.csv'
 last_coords_file = 'lastcoords.csv'
 
 zerospeed = 0.5 # What is the upper limit of vessel speed, non-inclusive, at which the vessel is stopped
-draftTolerance = 0.1  # Draft must fluctuate more than this number to indicate docking (in meters)
-distanceTolerance = 25 # Vessel must be no further than this distance (in km) from a given port.
-prearrival = 10 # How far before an arrival do we look to check draft delta
-postdeparture = 10 # How far after a departure do we look to check draft delta.
+draftTolerance = 0.08  # Draft must fluctuate more than this number to indicate docking (in meters)
+distanceTolerance = 40 # Vessel must be no further than this distance (in km) from a given port.
+prearrival = 12 # How far before an arrival do we look to check draft delta
+postdeparture = 12 # How far after a departure do we look to check draft delta.
 
 
 Prediction Maker
@@ -18,7 +18,7 @@ Prediction Maker
 distanceToleranceToKnown = 350 # Tolerance to possibly use a previously touched port (in km)
 distanceToleranceToUnknown = 275 # Tolerance to possibly use an untouched port for prediction (in km)
 secondaryDistanceToUnknown = 50 # A restriction used when proximity to unknown is high but multiple ports are navigable
-proximityToOriginTolerance = 1500 # How far away from origin port must vessel be to count the current proximity based prediction.
+proximityToOriginTolerance = 5000 # How far away from origin port must vessel be to count the current proximity based prediction.
 
 # Open files
 voyages = pd.read_csv('voyages.csv', parse_dates=["begin_date","end_date"])
@@ -29,4 +29,4 @@ Visualization
 
 tracking = pd.read_csv('Debug\Maps\\tracking.csv')
 ports = pd.read_csv('ports.csv')
-rad = 15000 # Set radius for ports
+rad = 40000 # Set radius for ports

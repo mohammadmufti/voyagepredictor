@@ -4,8 +4,9 @@ import folium.plugins as plugins
 
 tracking = pd.read_csv('Debug\Maps\\tracking.csv')
 ports = pd.read_csv('ports.csv')
+rad = 40000 # Set radius for ports
+
 vessels = pd.unique(tracking['vessel'])  # Find unique vessals
-rad = 15000 # Set radius for ports
 
 # Function to start a map w just the ports
 def startmap():

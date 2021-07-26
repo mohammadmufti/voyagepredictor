@@ -9,6 +9,7 @@ tracking_file = 'tracking.csv'
 ports_file = 'ports.csv'
 voyages_file = 'voyages.csv'
 ports_touched_file = 'tracking_list_ports_touched.csv'
+draft_issues_file = 'draft_issues.csv'
 last_coords_file = 'lastcoords.csv'
 
 # Initialize lists
@@ -16,13 +17,14 @@ ports_list = []
 original_tracking_list = []
 voyages = [["vessel", "begin_date", "end_date", "begin_port_id", "end_port_id"]]
 initvoyages = []
+draftissues = [[]]
 
 # Initialize Global Logic variables
 zerospeed = 0.5 # What is the upper limit of vessel speed, non-inclusive, at which the vessel is stopped
-draftTolerance = 0.1  # Draft must fluctuate more than this number to indicate docking (in meters)
-distanceTolerance = 25 # Vessel must be no further than this distance (in km) from a given port.
-prearrival = 10 # How far before an arrival do we look to check draft delta
-postdeparture = 10 # How far after a departure do we look to check draft delta.
+draftTolerance = 0.08  # Draft must fluctuate more than this number to indicate docking (in meters)
+distanceTolerance = 40 # Vessel must be no further than this distance (in km) from a given port.
+prearrival = 12 # How far before an arrival do we look to check draft delta
+postdeparture = 12 # How far after a departure do we look to check draft delta.
 
 # Open the files we will be reading for port and vessal data
 # Populate data into lists we will use
@@ -141,7 +143,8 @@ while (i+1 < totalLines):
 line = []
 for voyage in initvoyages:
     if voyage[5] <= draftTolerance: # For debugging
-        print(voyage)
+        # print(voyage)
+        draftissues.append(voyage)
     if voyage[5] >= draftTolerance:
         if line == []: # If line is blank
             voyages.append(voyage[0:5])
@@ -153,9 +156,12 @@ for voyage in initvoyages:
                 line.clear()
             else:
                 # We do not append to final voyages when its a same port to same port trip
-                print("Same port to same port trip")
-                print(line)
-                print(voyage)
+                # print("Same port to same port trip")
+                # print(line)
+                # print(voyage)
+                draftissues.append("Same port to same port trip")
+                draftissues.append(line)
+                draftissues.append(voyage)
         else:
             voyages.append(voyage[0:5])
             line.clear()
@@ -176,6 +182,12 @@ with open(ports_touched_file, 'w', newline='') as tlpt:
     tlpt_writer = csv.writer(tlpt, delimiter=',',quotechar='"',quoting=csv.QUOTE_MINIMAL)
     for ea in tracking_list:
         tlpt_writer.writerow(ea)
+
+# Store draft issues for debugging.
+with open(draft_issues_file, 'w', newline='') as di:
+    di_writer = csv.writer(di, delimiter=',',quotechar='"',quoting=csv.QUOTE_MINIMAL)
+    for ea in draftissues:
+        di_writer.writerow(ea)
 
 # A CSV File which tracks the last known coordinates of a vessel
 original_tracking_pd.groupby(['vessel'], as_index=False).last().to_csv(last_coords_file,

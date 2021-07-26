@@ -10,7 +10,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 distanceToleranceToKnown = 350 # Tolerance to possibly use a previously touched port (in km)
 distanceToleranceToUnknown = 275 # Tolerance to possibly use an untouched port for prediction (in km)
 secondaryDistanceToUnknown = 50 # A restriction used when proximity to unknown is high but multiple ports are navigable
-proximityToOriginTolerance = 1500 # How far away from origin port must vessel be to count the current proximity based prediction.
+proximityToOriginTolerance = 5000 # How far away from origin port must vessel be to count the current proximity based prediction.
 
 # Open files
 voyages = pd.read_csv('voyages.csv', parse_dates=["begin_date","end_date"])
