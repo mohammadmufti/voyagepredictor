@@ -90,6 +90,21 @@ for vessel in vessels:
         end_port = model.predict([[vessel, begin_port,
                                    #voyage,
                                    1]])
+        if begin_port == end_port:  # If begin port is equal to the end port - rerun model
+            print("Re-running" + str(vessel))
+            end_port = model.predict([[vessel, begin_port,
+                                       # voyage,
+                                       2]])  # Predictor fed w vessel, start, trip number and expected season
+        if begin_port == end_port:  # If begin port is equal to the end port - rerun model
+            print("Re-running" + str(vessel))
+            end_port = model.predict([[vessel, begin_port,
+                                       # voyage,
+                                       3]])  # Predictor fed w vessel, start, trip number and expected season
+        if begin_port == end_port:  # If begin port is equal to the end port - rerun model
+            print("Re-running" + str(vessel))
+            end_port = model.predict([[vessel, begin_port,
+                                       # voyage,
+                                       4]])  # Predictor fed w vessel, start, trip number and expected season
         predictions.append([vessel, begin_port, int(end_port[0]), voyage])
 
 # Store Predictions to csv
