@@ -7,8 +7,10 @@ from math import radians
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 #Initialize global variables
-distanceToleranceToKnown = 250 # Tolerance to possibly use a previously touched port (in km)
-distanceToleranceToUnknown = 50 # Tolerance to possibly use an untouched port for prediction (in km)
+distanceToleranceToKnown = 350 # Tolerance to possibly use a previously touched port (in km)
+distanceToleranceToUnknown = 275 # Tolerance to possibly use an untouched port for prediction (in km)
+secondaryDistanceToUnknown = 50 # A restriction used when proximity to unknown is high but multiple ports are navigable
+proximityToOriginTolerance = 1500 # How far away from origin port must vessel be to count the current proximity based prediction.
 
 # Open files
 voyages = pd.read_csv('voyages.csv', parse_dates=["begin_date","end_date"])
@@ -31,33 +33,40 @@ model = DecisionTreeClassifier() # Declare ML model
 
 # A function that takes vessel # as an argument, returns closest port within distanceTolerance if it exists.
 # Returns 0 if no closest port within restraints
-def firstTripFunction(vessel):
+def firstTripFunction(vessel, begin_port_loc):
     closest_port = 0
     closeness = distanceToleranceToKnown
     # Find relevent ports only:
     vesselports = pd.unique(voyages['end_port_id'].where(voyages.vessel == vessel).dropna())
-    for port in ports_list:
-        port_latlong = [radians(float(port[1])), radians(float(port[2]))]
-        vessel_latlong = [radians(float(lastcoords.at[vessel, 'lat'])), radians(float(lastcoords.at[vessel, 'long']))]
-        curr_closeness = haversine_distances([vessel_latlong, port_latlong]) * 6371
-        # if (vessel == 8):
-        #     print("FOR VESSEL 8 and Port " + str(port[0]) + str(port_latlong) + " "
-        #           + str(lastcoords.at[vessel, 'lat']) +
-        #           " " + str(lastcoords.at[vessel, 'long']) +
-        #             str(curr_closeness[0][1]))
-        if int(port[0]) in vesselports.astype(int).tolist():
-            if curr_closeness[0][1] < closeness:
+    vessel_latlong = [radians(float(lastcoords.at[vessel, 'lat'])), radians(float(lastcoords.at[vessel, 'long']))]
+    distToOrigin = haversine_distances([vessel_latlong, begin_port_loc]) * 6371
+    nearbyports = 0
+    if distToOrigin[0][1] > proximityToOriginTolerance:
+        for port in ports_list:
+            port_latlong = [radians(float(port[1])), radians(float(port[2]))]
+            curr_closeness = haversine_distances([vessel_latlong, port_latlong]) * 6371
+            # if (vessel == 8):
+            #     print("FOR VESSEL 8 and Port " + str(port[0]) + str(port_latlong) + " "
+            #           + str(lastcoords.at[vessel, 'lat']) +
+            #           " " + str(lastcoords.at[vessel, 'long']) +
+            #             str(curr_closeness[0][1]))
+            if int(port[0]) in vesselports.astype(int).tolist():
+                if curr_closeness[0][1] < closeness:
+                    closeness = curr_closeness[0][1]
+                    closest_port = port[0]
+            elif curr_closeness[0][1] < distanceToleranceToUnknown and curr_closeness[0][1] < closeness:
+                nearbyports+=1
+                # print("Using unknown due to extreme proximity")
+                # print(str(vessel) + " v:" + str(vessel_latlong) + " p:" + str(port_latlong) + " c:" + str(curr_closeness[0][1])
+                #       + '\n port:' + str(port[0]))
                 closeness = curr_closeness[0][1]
                 closest_port = port[0]
-        elif curr_closeness[0][1] < distanceToleranceToUnknown and curr_closeness[0][1] < closeness:
-            # print("Using unknown due to extreme proximity")
-            # print(str(vessel) + " v:" + str(vessel_latlong) + " p:" + str(port_latlong) + " c:" + str(curr_closeness[0][1])
-            #       + '\n port:' + str(port[0]))
-            closeness = curr_closeness[0][1]
-            closest_port = port[0]
     return int(closest_port)
 
-
+def beginPortFunction(beginport):
+    for port in ports_list:
+        if int(port[0]) == int(beginport):
+            return [port[1],port[2]]
 
 # Create a list of prediction values using our ML model
 for vessel in vessels:
@@ -67,18 +76,27 @@ for vessel in vessels:
     model.fit(X,y)
     # INSERT HERE ALTERNATIVE CODE TO FIND THE FIRST NEW DESTINATION
     begin_port = voyages.loc[voyages.where(voyages.vessel == vessel).last_valid_index(), 'end_port_id']
+    begin_port_latlong = beginPortFunction(begin_port)
     end_port = model.predict([[vessel, begin_port,
-                               #voyage,
-                               4]]) #Predictor fed w vessel, start, trip number and expected season
-    initial_trip = firstTripFunction(vessel)
+                               # voyage,
+                               4]])  # Predictor fed w vessel, start, trip number and expected season
+    # print(begin_port_latlong)
+    initial_trip = firstTripFunction(vessel, begin_port_latlong)
+    # print(initial_trip)
+    if initial_trip == 0:
+        end_port = model.predict([[vessel, begin_port,
+                                   # voyage,
+                                   4]])  # Predictor fed w vessel, start, trip number and expected season
+        initial_trip == end_port
     if initial_trip != 0 and initial_trip != begin_port:
         end_port[0] = initial_trip
         # print("Using proximity idea instead of ML model for " +
         #       str(vessel) + " " +
         #       str(begin_port) + " " +
         #       str(int(end_port[0])) + " " + str(voyage))
-    while begin_port == end_port: # If begin port is equal to the end port - rerun model
-        print("Re-running" + str(vessel))
+    if begin_port == end_port: # If begin port is equal to the end port - rerun model
+        # print("Re-running" + str(vessel))
+        print(vessel)
         end_port = model.predict([[vessel, begin_port,
                                    # voyage,
                                    1]])  # Predictor fed w vessel, start, trip number and expected season
@@ -91,17 +109,17 @@ for vessel in vessels:
                                    #voyage,
                                    1]])
         if begin_port == end_port:  # If begin port is equal to the end port - rerun model
-            print("Re-running" + str(vessel))
+            # print("Re-running" + str(vessel))
             end_port = model.predict([[vessel, begin_port,
                                        # voyage,
                                        2]])  # Predictor fed w vessel, start, trip number and expected season
         if begin_port == end_port:  # If begin port is equal to the end port - rerun model
-            print("Re-running" + str(vessel))
+            # print("Re-running" + str(vessel))
             end_port = model.predict([[vessel, begin_port,
                                        # voyage,
                                        3]])  # Predictor fed w vessel, start, trip number and expected season
         if begin_port == end_port:  # If begin port is equal to the end port - rerun model
-            print("Re-running" + str(vessel))
+            # print("Re-running" + str(vessel))
             end_port = model.predict([[vessel, begin_port,
                                        # voyage,
                                        4]])  # Predictor fed w vessel, start, trip number and expected season
