@@ -20,7 +20,7 @@ initvoyages = []
 draftissues = [[]]
 
 # Initialize Global Logic variables
-zerospeed = 0.5 # What is the upper limit of vessel speed, non-inclusive, at which the vessel is stopped
+zerospeed = 0.1 # What is the upper limit of vessel speed, non-inclusive, at which the vessel is stopped
 draftTolerance = 0.08  # Draft must fluctuate more than this number to indicate docking (in meters)
 distanceTolerance = 40 # Vessel must be no further than this distance (in km) from a given port.
 prearrival = 12 # How far before an arrival do we look to check draft delta
@@ -60,7 +60,7 @@ for row in original_tracking_list:
         # as vessal will sometimes be moving slowly about a port or near a port when its essentially entered
         # and sometimes data will show a v low speed but lat/long remain unchanged (errors in speed data).
         if row[5] != "NULL": # Disregard entries where speed is NULL
-            if float(row[5]) < zerospeed: # Only consider entries where speed is very slow or zero.
+            if float(row[5]) < zerospeed: # Only consider entries where speed is zero.
                 port_latlong = [radians(float(port[1])),radians(float(port[2]))]
                 curr_closeness = haversine_distances([row_latlong,port_latlong]) * 6371
                 if curr_closeness[0][1] < closeness:
